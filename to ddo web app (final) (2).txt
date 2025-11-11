@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart To-Do App</title>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #111, #2c2c2c);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 40px 10px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 600px;
+      background: #181818;
+      border-radius: 20px;
+      box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
+      padding: 25px;
+    }
+
+    h1 {
+      text-align: center;
+      color: red;
+      margin-bottom: 25px;
+    }
+
+    .task-input {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .task-input input {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 10px;
+      outline: none;
+      background: #222;
+      color: #fff;
+    }
+
+    .task-input input[type="datetime-local"] {
+      flex: none;
+      width: 230px;
+      cursor: pointer;
+    }
+
+    .task-input button {
+      background: red;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 15px;
+      color: #fff;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .task-input button:hover {
+      background: #b30000;
+    }
+
+    select.list-filter {
+      background: #222;
+      border: none;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      width: 100%;
+    }
+
+    ul {
+      list-style: none;
+      margin-top: 10px;
+    }
+
+    li {
+      background: #222;
+      margin-bottom: 10px;
+      padding: 10px 15px;
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: 0.3s;
+    }
+
+    li.completed {
+      text-decoration: line-through;
+      color: #888;
+      background: #333;
+    }
+
+    .task-details {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .task-time {
+      font-size: 0.8rem;
+      color: #aaa;
+    }
+
+    .actions button {
+      background: transparent;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      margin-left: 10px;
+      transition: 0.3s;
+      font-size: 18px;
+    }
+
+    .actions button:hover {
+      color: red;
+    }
+
+    /* Confirmation Popup */
+    .popup {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.4s ease;
+      z-index: 100;
+    }
+
+    .popup.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .popup-content {
+      background: #111;
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      box-shadow: 0 0 20px rgba(255, 0, 0, 0.4);
+      animation: pop 0.4s ease;
+    }
+
+    @keyframes pop {
+      from { transform: scale(0.8); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .popup-content h2 {
+      color: red;
+      margin-bottom: 10px;
+    }
+
+    .popup-content button {
+      background: red;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 15px;
+    }
+
+    @media (max-width: 600px) {
+      .task-input input[type="datetime-local"] {
+        width: 100%;
+      }
+      .task-input {
+        flex-direction: column;
+      }
+      .task-input button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>📝 Smart To-Do App</h1>
+
+    <!-- Input Section -->
+    <div class="task-input">
+      <input type="text" id="taskText" placeholder="Enter your task...">
+      <input type="datetime-local" id="taskDateTime">
+      <input type="text" id="taskList" placeholder="List name (Work, Study, etc)">
+      <button onclick="addTask()">Add Task</button>
+    </div>
+
+    <select id="filterList" class="list-filter" onchange="filterTasks()">
+      <option value="all">All Lists</option>
+    </select>
+
+    <ul id="taskListContainer"></ul>
+  </div>
+
+  <!-- Confirmation Popup -->
+  <div class="popup" id="popup">
+    <div class="popup-content">
+      <h2>✅ Thank You!</h2>
+      <p>Your task has been added successfully.</p>
+      <button onclick="closePopup()">OK</button>
+    </div>
+  </div>
+
+  <script>
+    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+
+    function renderTasks() {
+      const container = document.getElementById("taskListContainer");
+      const filterValue = document.getElementById("filterList").value;
+      container.innerHTML = "";
+
+      const filteredTasks = filterValue === "all"
+        ? tasks
+        : tasks.filter(t => t.list === filterValue);
+
+      filteredTasks.forEach((task, index) => {
+        const li = document.createElement("li");
+        if (task.completed) li.classList.add("completed");
+
+        li.innerHTML = `
+          <div class="task-details">
+            <span>${task.text}</span>
+            <span class="task-time">${task.dateTime ? new Date(task.dateTime).toLocaleString() : ""}</span>
+            <small>List: ${task.list || "General"}</small>
+          </div>
+          <div class="actions">
+            <button onclick="toggleComplete(${index})">✔</button>
+            <button onclick="editTask(${index})">✏️</button>
+            <button onclick="deleteTask(${index})">🗑</button>
+          </div>
+        `;
+        container.appendChild(li);
+      });
+
+      updateListOptions();
+      localStorage.setItem("tasks", JSON.stringify(tasks));
+    }
+
+    function addTask() {
+      const text = document.getElementById("taskText").value.trim();
+      const dateTime = document.getElementById("taskDateTime").value;
+      const list = document.getElementById("taskList").value.trim() || "General";
+
+      if (!text) {
+        alert("Please enter a task.");
+        return;
+      }
+
+      tasks.push({ text, dateTime, list, completed: false });
+      document.getElementById("taskText").value = "";
+      document.getElementById("taskDateTime").value = "";
+      document.getElementById("taskList").value = "";
+      renderTasks();
+
+      showPopup();
+    }
+
+    function toggleComplete(index) {
+      tasks[index].completed = !tasks[index].completed;
+      renderTasks();
+    }
+
+    function deleteTask(index) {
+      if (confirm("Delete this task?")) {
+        tasks.splice(index, 1);
+        renderTasks();
+      }
+    }
+
+    function editTask(index) {
+      const newText = prompt("Edit task:", tasks[index].text);
+      if (newText !== null && newText.trim() !== "") {
+        tasks[index].text = newText.trim();
+        renderTasks();
+      }
+    }
+
+    function updateListOptions() {
+      const filter = document.getElementById("filterList");
+      const uniqueLists = ["all", ...new Set(tasks.map(t => t.list))];
+      filter.innerHTML = uniqueLists.map(list =>
+        `<option value="${list}">${list.charAt(0).toUpperCase() + list.slice(1)}</option>`
+      ).join("");
+    }
+
+    function filterTasks() {
+      renderTasks();
+    }
+
+    function showPopup() {
+      const popup = document.getElementById("popup");
+      popup.classList.add("active");
+
+      // auto close popup after 2 seconds
+      setTimeout(() => {
+        closePopup();
+      }, 2000);
+    }
+
+    function closePopup() {
+      document.getElementById("popup").classList.remove("active");
+    }
+
+    renderTasks();
+  </script>
+
+</body>
+</html>
